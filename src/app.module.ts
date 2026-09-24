@@ -6,7 +6,9 @@ import { AuthModule } from './auth/auth.module.js';
 
 @Module({
   imports: [
-    MongooseModule.forRoot(process.env.DATABASECONNECTION || 'mongodb://localhost:27017/cleanerdb'),
+    MongooseModule.forRoot(
+      process.env.DATABASECONNECTION || 'mongodb://localhost:27017/cleanerdb',
+    ),
     ServicesModule,
     TenantModule,
     AuthModule,

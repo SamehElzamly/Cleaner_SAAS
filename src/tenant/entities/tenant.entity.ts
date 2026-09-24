@@ -12,7 +12,7 @@ export class Tenant {
   slug: string;
 
   @Prop({ default: 'active' })
-  status: string;
+  status: 'active' | 'inactive' | 'pending' | 'suspended' | 'deleted';
 }
 
 export const TenantSchema = SchemaFactory.createForClass(Tenant);
