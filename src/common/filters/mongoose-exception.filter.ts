@@ -2,6 +2,7 @@ import {
   ArgumentsHost,
   Catch,
   ExceptionFilter,
+  HttpException,
   HttpStatus,
 } from '@nestjs/common';
 import { Response } from 'express';
@@ -62,7 +63,30 @@ export class MongooseExceptionFilter implements ExceptionFilter {
       });
     }
 
-    // باقي الأخطاء
+    // Any exception Nest already knows how to handle
+    // (BadRequestException, UnauthorizedException, NotFoundException, etc.)
+    // -> keep its real status code and message instead of flattening to 500
+    if (exception instanceof HttpException) {
+      const status = exception.getStatus();
+      const res = exception.getResponse();
+
+      // Log server-side so it's visible in the terminal, but don't
+      // treat 4xx client errors as noisy failures
+      if (status >= 500) {
+        console.error('Unhandled HttpException:', exception);
+      }
+
+      return response.status(status).json(
+        typeof res === 'string'
+          ? { statusCode: status, message: res }
+          : res,
+      );
+    }
+
+    // Anything else: truly unexpected error (bugs, undefined values, etc.)
+    // ALWAYS log this — this is the case that was being silently swallowed.
+    console.error('Unhandled exception:', exception);
+
     return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       message: 'Internal server error',
