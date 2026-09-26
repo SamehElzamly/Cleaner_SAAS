@@ -140,6 +140,8 @@ export class User {
     default: null,
   })
   lastLoginAt?: Date;
+  @Prop({ select: false })
+  refreshTokenHash?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
