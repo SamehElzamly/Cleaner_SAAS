@@ -6,9 +6,8 @@ import {
     IsOptional,
     IsString,
     MinLength,
-    ValidateIf,
 } from 'class-validator';
-import { Gender, UserRole } from '../entities/user.entity.js';
+import { Gender } from '../entities/user.entity.js';
 
 export class CreateUserDto {
     // =========================
@@ -71,16 +70,9 @@ export class CreateUserDto {
     // Company / Tenant
     // =========================
 
-    @IsOptional()
-    @IsEnum(UserRole, { message: 'Invalid role' })
-    role?: UserRole;
-
-    // Required for every role except ADMIN, mirroring the entity's
-    // conditional `required` function.
-    @ValidateIf((dto: CreateUserDto) => dto.role !== UserRole.ADMIN)
     @IsMongoId({ message: 'tenantId must be a valid Mongo ObjectId' })
-    @IsNotEmpty({ message: 'tenantId is required unless role is admin' })
-    tenantId?: string;
+    @IsNotEmpty({ message: 'tenantId is required' })
+    tenantId: string;
 
     @IsOptional()
     @IsString()

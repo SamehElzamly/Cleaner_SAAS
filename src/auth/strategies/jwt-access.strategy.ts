@@ -23,6 +23,15 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
     if (!payload?.sub) {
       throw new UnauthorizedException('Invalid access token');
     }
-    return { userId: payload.sub, email: payload.email };
+    // tenantId/role now come straight from the token (see
+    // AuthService.getTokens) so the Tenant Resolver and any RBAC guard can
+    // read them off req.user without an extra DB call. Previously only
+    // userId/email were returned here.
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      tenantId: payload.tenantId,
+      role: payload.role,
+    };
   }
 }

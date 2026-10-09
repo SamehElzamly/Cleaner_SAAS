@@ -1,8 +1,15 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { JwtPayload } from '../jwt-payload.interface.js';
+
+// Reused in both the strategy's own jwtFromRequest option and in validate()
+// below, instead of hand-parsing the Authorization header a second time
+// (the original code did `authHeader.replace('Bearer', '').trim()`, which
+// breaks on a lowercase "bearer" or a header with irregular whitespace —
+// cases passport-jwt's own extractor already handles correctly).
+const extractToken = ExtractJwt.fromAuthHeaderAsBearerToken();
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
@@ -13,7 +20,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     }
 
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: extractToken,
       ignoreExpiration: false,
       secretOrKey: secret,
       passReqToCallback: true,
@@ -25,11 +32,19 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const authHeader = req.get('Authorization') ?? '';
-    const refreshToken = authHeader.replace('Bearer', '').trim();
+    const refreshToken = extractToken(req);
+    if (!refreshToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
 
-    // We pass the raw token along so the service can compare it
-    // against the hashed refresh token stored in the DB.
-    return { userId: payload.sub, email: payload.email, refreshToken };
+    // We pass the raw token along so the service can compare it against the
+    // hashed refresh token stored in the DB.
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      tenantId: payload.tenantId,
+      role: payload.role,
+      refreshToken,
+    };
   }
 }
