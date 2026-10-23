@@ -8,6 +8,7 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto.js';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto.js';
 import { CreateTenantAdminDto } from './dto/create-tenant-admin.dto.js';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
 
 type PlainUser = ReturnType<UserDocument['toObject']>;
 export type PublicUser = Omit<PlainUser, 'password' | 'refreshTokenHash'>;
@@ -35,6 +36,7 @@ interface NewUserFields {
 export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   private sanitize(user: UserDocument): PublicUser {
@@ -53,6 +55,20 @@ export class UsersService {
     dto: NewUserFields,
     role: UserRole,
   ): Promise<PublicUser> {
+    // Enforce the tenant's plan limit. A tenant with NO active subscription
+    // is currently unlimited (so a platform admin can provision its first
+    // admin before the tenant has subscribed) — tighten this later if you
+    // want a mandatory plan/trial.
+    const plan = await this.subscriptionsService.getActivePlan(tenantId);
+    if (plan) {
+      const currentUsers = await this.userModel.countDocuments({ tenantId }).exec();
+      if (currentUsers >= plan.maxUsers) {
+        throw new ForbiddenException(
+          `Your "${plan.name}" plan allows up to ${plan.maxUsers} users — upgrade to add more`,
+        );
+      }
+    }
+
     const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS) || 10;
     const passwordHash = await bcrypt.hash(dto.password, saltRounds);
 

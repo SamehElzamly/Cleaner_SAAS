@@ -4,6 +4,11 @@ import { ServicesModule } from './services/services.module.js';
 import { TenantModule } from './tenant/tenant.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
+import { PlansModule } from './plans/plans.module.js';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module.js';
+import { BranchesModule } from './branches/branches.module.js';
+import { CustomersModule } from './customers/customers.module.js';
+import { StaffModule } from './staff/staff.module.js';
 
 @Module({
   imports: [
@@ -14,6 +19,11 @@ import { UsersModule } from './users/users.module.js';
     TenantModule,
     AuthModule,
     UsersModule,
+    PlansModule,
+    SubscriptionsModule,
+    BranchesModule,
+    CustomersModule,
+    StaffModule,
   ],
 })
 export class AppModule {}
