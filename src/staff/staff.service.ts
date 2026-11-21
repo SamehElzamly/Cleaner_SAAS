@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { Staff, StaffDocument } from './entities/staff.entity.js';
 import { Branch, BranchDocument } from '../branches/entities/branch.entity.js';
 import { User, UserDocument } from '../auth/entities/user.entity.js';
+import { Booking, BookingDocument } from '../bookings/entities/booking.entity.js';
 import { CreateStaffDto } from './dto/create-staff.dto.js';
 import { UpdateStaffDto } from './dto/update-staff.dto.js';
 import { AvailabilitySlotDto } from './dto/availability-slot.dto.js';
@@ -15,6 +16,7 @@ export class StaffService {
     @InjectModel(Staff.name) private readonly staffModel: Model<StaffDocument>,
     @InjectModel(Branch.name) private readonly branchModel: Model<BranchDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(Booking.name) private readonly bookingModel: Model<BookingDocument>,
   ) {}
 
   // The ids in the body are client-supplied, so confirm they belong to the
@@ -111,7 +113,14 @@ export class StaffService {
 
   async remove(tenantId: string, id: string) {
     // Removes the staff PROFILE only — the underlying login account (User)
-    // is untouched. TODO (Phase 4): block if they have upcoming bookings.
+    // is untouched. A staff member who appears in any booking is part of
+    // that history, so deactivate them (isActive: false) instead.
+    const bookingCount = await this.bookingModel.countDocuments({ tenantId, staffId: id }).exec();
+    if (bookingCount > 0) {
+      throw new ConflictException(
+        `This staff member appears in ${bookingCount} booking(s) — deactivate them (isActive: false) instead of deleting`,
+      );
+    }
     const result = await this.staffModel.deleteOne({ _id: id, tenantId }).exec();
     if (result.deletedCount === 0) throw new NotFoundException(`Staff member with id "${id}" not found`);
     return { deleted: true, id };

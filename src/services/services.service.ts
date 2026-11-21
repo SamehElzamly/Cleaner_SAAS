@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CleaningService, CleaningServiceDocument } from './entities/cleaning-service.entity.js';
+import { Booking, BookingDocument } from '../bookings/entities/booking.entity.js';
 import { CreateServiceDto } from './dto/create-service.dto.js';
 import { UpdateServiceDto } from './dto/update-service.dto.js';
 import { buildPagination, normalizePagination } from '../common/utils/pagination.js';
@@ -11,6 +12,7 @@ export class ServicesService {
   constructor(
     @InjectModel(CleaningService.name)
     private readonly serviceModel: Model<CleaningServiceDocument>,
+    @InjectModel(Booking.name) private readonly bookingModel: Model<BookingDocument>,
   ) {}
 
   async create(tenantId: string, dto: CreateServiceDto) {
@@ -75,8 +77,14 @@ export class ServicesService {
   }
 
   async remove(tenantId: string, id: string) {
-    // TODO (Phase 4): refuse to delete a service that existing bookings
-    // reference — deactivate it (isActive: false) instead.
+    // Past bookings reference this service — deleting it would leave them
+    // pointing at nothing. Deactivate it (isActive: false) instead.
+    const bookingCount = await this.bookingModel.countDocuments({ tenantId, serviceId: id }).exec();
+    if (bookingCount > 0) {
+      throw new ConflictException(
+        `This service is used by ${bookingCount} booking(s) — deactivate it (isActive: false) instead of deleting`,
+      );
+    }
     const result = await this.serviceModel.deleteOne({ _id: id, tenantId }).exec();
     if (result.deletedCount === 0) throw new NotFoundException(`Service with id "${id}" not found`);
     return { deleted: true, id };

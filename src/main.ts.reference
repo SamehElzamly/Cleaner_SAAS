@@ -1,0 +1,21 @@
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { AppModule } from './app.module.js';
+
+async function bootstrap() {
+  // rawBody: true is REQUIRED by Phase 5: POST /payments/webhook verifies an
+  // HMAC over the exact bytes received, which only the raw body preserves.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
+
+  await app.listen(process.env.PORT || 3000);
+}
+bootstrap();

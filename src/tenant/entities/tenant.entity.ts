@@ -24,6 +24,15 @@ export class Tenant {
   @Prop({ type: String, enum: TenantStatus, default: TenantStatus.ACTIVE })
   status: TenantStatus;
 
+  // IANA timezone the tenant operates in. Staff availability ("Mon 09:00-17:00")
+  // and the daily calendar are interpreted in THIS timezone, not the server's.
+  @Prop({ default: 'UTC', trim: true })
+  timezone: string;
+
+  // ISO 4217 code ("EGP", "USD"...). Invoices snapshot it when they're issued.
+  @Prop({ default: 'USD', uppercase: true, trim: true })
+  currency: string;
+
   // Reference to the tenant's subscription plan (the "plans" collection
   // from Phase 2 of the plan). Nullable for now since that module doesn't
   // exist yet — every tenant just has no plan assigned until then.

@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Branch, BranchDocument } from './entities/branch.entity.js';
 import { Staff, StaffDocument } from '../staff/entities/staff.entity.js';
+import { Booking, BookingDocument } from '../bookings/entities/booking.entity.js';
 import { CreateBranchDto } from './dto/create-branch.dto.js';
 import { UpdateBranchDto } from './dto/update-branch.dto.js';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
@@ -13,6 +14,7 @@ export class BranchesService {
   constructor(
     @InjectModel(Branch.name) private readonly branchModel: Model<BranchDocument>,
     @InjectModel(Staff.name) private readonly staffModel: Model<StaffDocument>,
+    @InjectModel(Booking.name) private readonly bookingModel: Model<BookingDocument>,
     private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
@@ -76,6 +78,12 @@ export class BranchesService {
     if (staffCount > 0) {
       throw new ConflictException(
         `This branch still has ${staffCount} staff member(s) — reassign them before deleting it`,
+      );
+    }
+    const bookingCount = await this.bookingModel.countDocuments({ tenantId, branchId: id }).exec();
+    if (bookingCount > 0) {
+      throw new ConflictException(
+        `This branch has ${bookingCount} booking(s) on record — deactivate it (isActive: false) instead of deleting`,
       );
     }
     const result = await this.branchModel.deleteOne({ _id: id, tenantId }).exec();

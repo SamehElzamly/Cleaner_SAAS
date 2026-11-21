@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Branch, BranchSchema } from './entities/branch.entity.js';
 import { Staff, StaffSchema } from '../staff/entities/staff.entity.js';
+import { Booking, BookingSchema } from '../bookings/entities/booking.entity.js';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module.js';
 import { BranchesService } from './branches.service.js';
 import { BranchesController } from './branches.controller.js';
@@ -11,6 +12,7 @@ import { BranchesController } from './branches.controller.js';
     MongooseModule.forFeature([
       { name: Branch.name, schema: BranchSchema },
       { name: Staff.name, schema: StaffSchema }, // only for the "branch still has staff" check
+      { name: Booking.name, schema: BookingSchema }, // delete guard
     ]),
     SubscriptionsModule, // maxBranches enforcement
   ],

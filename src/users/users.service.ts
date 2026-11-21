@@ -9,6 +9,8 @@ import { UpdateUserRoleDto } from './dto/update-user-role.dto.js';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto.js';
 import { CreateTenantAdminDto } from './dto/create-tenant-admin.dto.js';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service.js';
+import { Staff, StaffDocument } from '../staff/entities/staff.entity.js';
+import { Booking, BookingDocument } from '../bookings/entities/booking.entity.js';
 
 type PlainUser = ReturnType<UserDocument['toObject']>;
 export type PublicUser = Omit<PlainUser, 'password' | 'refreshTokenHash'>;
@@ -37,6 +39,8 @@ export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly subscriptionsService: SubscriptionsService,
+    @InjectModel(Staff.name) private readonly staffModel: Model<StaffDocument>,
+    @InjectModel(Booking.name) private readonly bookingModel: Model<BookingDocument>,
   ) {}
 
   private sanitize(user: UserDocument): PublicUser {
@@ -194,10 +198,26 @@ export class UsersService {
     if (id === requestingUserId) {
       throw new ForbiddenException('You cannot delete your own account');
     }
+    // If this user has a staff profile: a profile that appears in bookings is
+    // history, so refuse (deactivate the user instead); otherwise remove the
+    // profile together with the user so it can't be left orphaned.
+    const staff = await this.staffModel.findOne({ tenantId, userId: id }).exec();
+    if (staff) {
+      const bookingCount = await this.bookingModel
+        .countDocuments({ tenantId, staffId: staff._id })
+        .exec();
+      if (bookingCount > 0) {
+        throw new ConflictException(
+          `This user appears in ${bookingCount} booking(s) as staff — deactivate them (PATCH /users/:id/status) instead of deleting`,
+        );
+      }
+    }
+
     const result = await this.userModel.deleteOne({ _id: id, tenantId }).exec();
     if (result.deletedCount === 0) {
       throw new NotFoundException(`User with id "${id}" not found`);
     }
+    if (staff) await this.staffModel.deleteOne({ _id: staff._id }).exec();
     return { deleted: true, id };
   }
 }

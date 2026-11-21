@@ -17,8 +17,6 @@ import { UserRole } from '../auth/entities/user.entity.js';
 // Employees take calls and book jobs, so they can create/read/update
 // customers. Deleting is COMPANY only.
 //
-// NOT here yet: GET /customers/:id/bookings — Bookings don't exist until
-// Phase 4, so that endpoint is built there.
 @UseGuards(JwtAccessGuard, RolesGuard)
 @Roles(UserRole.COMPANY, UserRole.EMPLOYEE)
 @Controller('customers')
@@ -43,6 +41,17 @@ export class CustomersController {
   @Get(':id')
   findOne(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseObjectIdPipe) id: string) {
     return this.customersService.findOne(requireTenant(user), id);
+  }
+
+  // GET /customers/:id/bookings?page=1&limit=10
+  @Get(':id/bookings')
+  findBookings(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.customersService.findBookings(requireTenant(user), id, page, limit);
   }
 
   @Patch(':id')

@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Customer, CustomerDocument } from './entities/customer.entity.js';
+import { Booking, BookingDocument } from '../bookings/entities/booking.entity.js';
 import { CreateCustomerDto } from './dto/create-customer.dto.js';
 import { UpdateCustomerDto } from './dto/update-customer.dto.js';
 import { buildPagination, normalizePagination } from '../common/utils/pagination.js';
@@ -10,7 +11,10 @@ const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 @Injectable()
 export class CustomersService {
-  constructor(@InjectModel(Customer.name) private readonly customerModel: Model<CustomerDocument>) {}
+  constructor(
+    @InjectModel(Customer.name) private readonly customerModel: Model<CustomerDocument>,
+    @InjectModel(Booking.name) private readonly bookingModel: Model<BookingDocument>,
+  ) {}
 
   async create(tenantId: string, dto: CreateCustomerDto) {
     try {
@@ -59,8 +63,33 @@ export class CustomersService {
     }
   }
 
+  // GET /customers/:id/bookings — a customer's full booking history.
+  async findBookings(tenantId: string, id: string, page = 1, limit = 10) {
+    await this.findOne(tenantId, id); // 404 if not this tenant's customer
+    const p = normalizePagination(page, limit);
+    const filter = { tenantId, customerId: id };
+    const [bookings, total] = await Promise.all([
+      this.bookingModel
+        .find(filter)
+        .sort({ scheduledAt: -1 })
+        .skip(p.skip)
+        .limit(p.limit)
+        .populate('serviceId', 'name')
+        .populate('branchId', 'name')
+        .exec(),
+      this.bookingModel.countDocuments(filter).exec(),
+    ]);
+    return { bookings, pagination: buildPagination(p.page, p.limit, total) };
+  }
+
   async remove(tenantId: string, id: string) {
-    // TODO (Phase 4): refuse to delete a customer who has bookings.
+    // A customer with booking history is a business record — keep it.
+    const bookingCount = await this.bookingModel.countDocuments({ tenantId, customerId: id }).exec();
+    if (bookingCount > 0) {
+      throw new ConflictException(
+        `This customer has ${bookingCount} booking(s) on record and can't be deleted`,
+      );
+    }
     const result = await this.customerModel.deleteOne({ _id: id, tenantId }).exec();
     if (result.deletedCount === 0) throw new NotFoundException(`Customer with id "${id}" not found`);
     return { deleted: true, id };

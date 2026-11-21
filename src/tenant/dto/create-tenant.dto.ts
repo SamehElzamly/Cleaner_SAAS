@@ -1,3 +1,4 @@
+import { IsIanaTimezone } from '../../common/validators/is-iana-timezone.validator.js';
 import { IsMongoId, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class CreateTenantDto {
@@ -33,6 +34,17 @@ export class CreateTenantDto {
   @IsOptional()
   @IsMongoId()
   planId?: string;
+
+  // Defaults to "UTC" if omitted. Set it to the company's real timezone
+  // (e.g. "Africa/Cairo") so bookings line up with staff working hours.
+  @IsOptional()
+  @IsIanaTimezone()
+  timezone?: string;
+
+  // 3-letter ISO 4217 code, e.g. "EGP". Defaults to "USD" if omitted.
+  @IsOptional()
+  @Matches(/^[A-Za-z]{3}$/, { message: 'currency must be a 3-letter code, e.g. EGP' })
+  currency?: string;
 
   // `status` is intentionally NOT accepted here. A new tenant always starts
   // as ACTIVE — letting the client set it on creation would let anyone
