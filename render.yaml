@@ -1,0 +1,30 @@
+# Render "Blueprint": New + -> Blueprint -> pick this repo.
+services:
+  - type: web
+    name: cleaner-api
+    runtime: node
+    plan: free
+    # --include=dev: Render sets NODE_ENV=production, which would otherwise skip
+    # devDependencies, and `nest build` needs @nestjs/cli + typescript.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node dist/main.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: MONGODB_URI
+        sync: false            # you paste it in the dashboard (it contains a password)
+      - key: JWT_ACCESS_SECRET
+        generateValue: true    # Render generates a random secret
+      - key: JWT_REFRESH_SECRET
+        generateValue: true    # separate random value, so it differs from the access one
+      - key: PAYMENT_WEBHOOK_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: BCRYPT_SALT_ROUNDS
+        value: "10"
+      - key: CORS_ORIGINS
+        sync: false            # optional: your web frontend origin(s)

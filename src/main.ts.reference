@@ -1,11 +1,11 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
-  // rawBody: true is REQUIRED by Phase 5: POST /payments/webhook verifies an
-  // HMAC over the exact bytes received, which only the raw body preserves.
+  // rawBody: required by POST /payments/webhook (HMAC over the exact bytes).
   const app = await NestFactory.create(AppModule, { rawBody: true });
+  const logger = new Logger('Bootstrap');
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -16,6 +16,22 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(process.env.PORT || 3000);
+  // CORS only matters for browsers (a web frontend). Native mobile apps
+  // aren't subject to it. Comma-separated list, e.g.
+  //   CORS_ORIGINS=https://app.example.com,http://localhost:5173
+  const origins = process.env.CORS_ORIGINS?.split(',').map((s) => s.trim()).filter(Boolean);
+  if (origins?.length) {
+    app.enableCors({ origin: origins, credentials: true });
+  } else {
+    app.enableCors(); // allow all — fine for a test deployment only
+    logger.warn('CORS_ORIGINS is not set: allowing ALL origins. Set it before real use.');
+  }
+
+  app.enableShutdownHooks(); // clean DB disconnect when the host restarts/stops the service
+
+  // Hosts inject PORT and require binding to all interfaces (0.0.0.0).
+  const port = Number(process.env.PORT) || 3000;
+  await app.listen(port, '0.0.0.0');
+  logger.log(`API listening on port ${port}`);
 }
 bootstrap();
