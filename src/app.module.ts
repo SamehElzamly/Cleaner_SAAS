@@ -14,6 +14,12 @@ import { StaffModule } from './staff/staff.module.js';
   imports: [
     MongooseModule.forRoot(
       process.env.DATABASECONNECTION || 'mongodb://localhost:27017/cleanerdb',
+      {
+        maxPoolSize: 5,
+        serverSelectionTimeoutMS: 8000, // يفشل في 8 ثواني بدل ما يعلّق
+        retryAttempts: 1,               // مرة واحدة بدل 9 (الـ default)
+        retryDelay: 1000,
+      }
     ),
     ServicesModule,
     TenantModule,
@@ -26,4 +32,4 @@ import { StaffModule } from './staff/staff.module.js';
     StaffModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }
